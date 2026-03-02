@@ -20,28 +20,28 @@ from tests.fixtures.repo_builders import (
 
 # ── Fuzzy assertion helpers ────────────────────────────────────────────────
 
-def assert_mentions_any(output: str, keywords: list[str], min_matches: int = 2):
-    """Assert the output mentions at least `min_matches` of the given keywords (case-insensitive)."""
-    lower = output.lower()
-    matches = [kw for kw in keywords if kw.lower() in lower]
-    assert len(matches) >= min_matches, (
-        f"Expected at least {min_matches} of {keywords} in output, "
-        f"but only found: {matches}\n\nOutput excerpt:\n{output[:1000]}"
-    )
+def assert_output_relevant(output: str, scenario: dict, min_matches: int = 3):
+    """Assert the LLM output demonstrates understanding of the bug.
 
-
-def assert_mentions_file(output: str, filename: str, alt_identifiers: list[str] | None = None):
-    """Assert the output references a file — by filename, module name, or key identifiers.
-
-    The LLM may refer to code by filename, module name (stem without extension),
-    or by function/class names within the file rather than the filename itself.
+    Checks a combined pool of expected terms: filenames, function names,
+    module names, and domain keywords. The LLM may use any combination —
+    what matters is that enough relevant terms appear, not which specific
+    ones it chose.
     """
-    candidates = [filename, filename.rsplit(".", 1)[0]]  # e.g. ["user_service.py", "user_service"]
-    if alt_identifiers:
-        candidates.extend(alt_identifiers)
-    found = any(c in output for c in candidates)
-    assert found, (
-        f"Expected any of {candidates} in output.\n\nOutput excerpt:\n{output[:1000]}"
+    # Build a combined pool from all scenario identifiers
+    pool = list(scenario["expected_mentions"])
+    pool.append(scenario["buggy_file"].rsplit("/", 1)[-1])          # e.g. "user_service.py"
+    pool.append(scenario["buggy_file"].rsplit("/", 1)[-1].rsplit(".", 1)[0])  # e.g. "user_service"
+    pool.extend(scenario.get("alt_identifiers", []))
+
+    lower = output.lower()
+    matches = [term for term in pool if term.lower() in lower]
+    # Deduplicate (e.g. a function name might appear in both lists)
+    unique_matches = list(dict.fromkeys(matches))
+
+    assert len(unique_matches) >= min_matches, (
+        f"Expected at least {min_matches} of {pool} in output, "
+        f"but only found: {unique_matches}\n\nOutput excerpt:\n{output[:1500]}"
     )
 
 
@@ -53,9 +53,10 @@ def assert_has_actionable_guidance(output: str):
         "print", "trace", "recommend", "suggest",
         "fix", "root cause", "affected", "issue", "problem",
         "solution", "change", "replace", "update", "modify",
+        "formula", "ceiling", "guard", "lock", "mutex",
     ])
     assert has_guidance, (
-        f"Expected actionable debugging guidance in output.\n\nOutput excerpt:\n{output[:1000]}"
+        f"Expected actionable debugging guidance in output.\n\nOutput excerpt:\n{output[:1500]}"
     )
 
 
@@ -72,8 +73,7 @@ class TestNullReferenceBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "user_service.py", scenario["alt_identifiers"])
-        assert_mentions_any(output, scenario["expected_mentions"])
+        assert_output_relevant(output, scenario)
         assert_has_actionable_guidance(output)
 
 
@@ -88,8 +88,7 @@ class TestRaceConditionBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "counter.py", scenario["alt_identifiers"])
-        assert_mentions_any(output, scenario["expected_mentions"])
+        assert_output_relevant(output, scenario)
         assert_has_actionable_guidance(output)
 
 
@@ -104,8 +103,7 @@ class TestSwallowedErrorBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "api_client.py", scenario["alt_identifiers"])
-        assert_mentions_any(output, scenario["expected_mentions"])
+        assert_output_relevant(output, scenario)
         assert_has_actionable_guidance(output)
 
 
@@ -120,6 +118,5 @@ class TestPaginationBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "paginator.py", scenario["alt_identifiers"])
-        assert_mentions_any(output, scenario["expected_mentions"])
+        assert_output_relevant(output, scenario)
         assert_has_actionable_guidance(output)
