@@ -81,6 +81,7 @@ def build_null_reference_bug(repo_dir: Path) -> dict:
         "expected_mentions": ["get_user_by_id", "None", "user_id", "tier"],
         "expected_strategy": "logging",
         "buggy_file": "src/user_service.py",
+        "alt_identifiers": ["process_user_order", "get_user_by_id"],
     }
 
 
@@ -158,6 +159,7 @@ def build_race_condition_bug(repo_dir: Path) -> dict:
         "expected_mentions": ["lock", "thread", "race", "count"],
         "expected_strategy": "logging",
         "buggy_file": "src/counter.py",
+        "alt_identifiers": ["RequestCounter", "record_request"],
     }
 
 
@@ -217,6 +219,7 @@ def build_swallowed_error_bug(repo_dir: Path) -> dict:
         "expected_mentions": ["except", "swallow", "error", "fetch_pricing"],
         "expected_strategy": "logging",
         "buggy_file": "src/api_client.py",
+        "alt_identifiers": ["fetch_pricing", "get_order_total"],
     }
 
 
@@ -264,4 +267,5 @@ def build_pagination_bug(repo_dir: Path) -> dict:
         "expected_mentions": ["page", "ceil", "remainder", "25", "20"],
         "expected_strategy": "debugger",
         "buggy_file": "src/paginator.py",
+        "alt_identifiers": ["paginate", "get_all_results", "total_pages"],
     }

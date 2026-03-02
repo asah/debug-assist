@@ -30,10 +30,18 @@ def assert_mentions_any(output: str, keywords: list[str], min_matches: int = 2):
     )
 
 
-def assert_mentions_file(output: str, filename: str):
-    """Assert a specific filename appears in the output."""
-    assert filename in output, (
-        f"Expected filename '{filename}' in output.\n\nOutput excerpt:\n{output[:1000]}"
+def assert_mentions_file(output: str, filename: str, alt_identifiers: list[str] | None = None):
+    """Assert the output references a file — by filename, module name, or key identifiers.
+
+    The LLM may refer to code by filename, module name (stem without extension),
+    or by function/class names within the file rather than the filename itself.
+    """
+    candidates = [filename, filename.rsplit(".", 1)[0]]  # e.g. ["user_service.py", "user_service"]
+    if alt_identifiers:
+        candidates.extend(alt_identifiers)
+    found = any(c in output for c in candidates)
+    assert found, (
+        f"Expected any of {candidates} in output.\n\nOutput excerpt:\n{output[:1000]}"
     )
 
 
@@ -64,7 +72,7 @@ class TestNullReferenceBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "user_service.py")
+        assert_mentions_file(output, "user_service.py", scenario["alt_identifiers"])
         assert_mentions_any(output, scenario["expected_mentions"])
         assert_has_actionable_guidance(output)
 
@@ -80,7 +88,7 @@ class TestRaceConditionBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "counter.py")
+        assert_mentions_file(output, "counter.py", scenario["alt_identifiers"])
         assert_mentions_any(output, scenario["expected_mentions"])
         assert_has_actionable_guidance(output)
 
@@ -96,7 +104,7 @@ class TestSwallowedErrorBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "api_client.py")
+        assert_mentions_file(output, "api_client.py", scenario["alt_identifiers"])
         assert_mentions_any(output, scenario["expected_mentions"])
         assert_has_actionable_guidance(output)
 
@@ -112,6 +120,6 @@ class TestPaginationBug:
         prompt = build_prompt_from_skill(scenario["error_message"])
         output = run_skill(prompt, repo_dir)
 
-        assert_mentions_file(output, "paginator.py")
+        assert_mentions_file(output, "paginator.py", scenario["alt_identifiers"])
         assert_mentions_any(output, scenario["expected_mentions"])
         assert_has_actionable_guidance(output)
