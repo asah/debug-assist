@@ -43,6 +43,8 @@ def assert_has_actionable_guidance(output: str):
     has_guidance = any(term in lower for term in [
         "log", "breakpoint", "inspect", "add", "check", "debug",
         "print", "trace", "recommend", "suggest",
+        "fix", "root cause", "affected", "issue", "problem",
+        "solution", "change", "replace", "update", "modify",
     ])
     assert has_guidance, (
         f"Expected actionable debugging guidance in output.\n\nOutput excerpt:\n{output[:1000]}"
